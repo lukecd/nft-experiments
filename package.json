@@ -1,0 +1,19 @@
+{
+  "name": "nft-experiments",
+  "version": "1.0.0",
+  "description": "a project to showcase my experiments with NFTs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lukecd/nft-experiments.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lukecd/nft-experiments/issues"
+  },
+  "homepage": "https://github.com/lukecd/nft-experiments#readme"
+}
