@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Neon Forest</title>
+	</head>
+	<body>
+		<canvas id="canvas" width="500" height="500"></canvas>
+		<script>
+			class Leaf {
+				constructor(x, y, color) {}
+
+				/**
+				 * Draw the leaf at current coordinates.
+				 */
+				draw() {}
+			}
+
+			class Tree {
+				constructor() {}
+
+				/**
+				 * Randomally pick a leaf and let it fall until it hits the ground,
+				 * then tell Earth to plant a new tree at that location.
+				 */
+				shake() {}
+
+				/**
+				 * Draw the tree using stored insructions, followed by leaves.
+				 */
+				draw() {}
+
+				/**
+				 * Recursive function used to define the tree. As this tree is constantly
+				 * redrawn in an animation loop, we save processing power by only
+				 * computing the design once, then we redraw it from the saved instructions.
+				 */
+				init(startX, startY, length, angle, depth, branchWidth) {}
+			}
+
+			class Earth {
+				constructor() {}
+
+				/**
+				 * Creates a new tree at x, height
+				 */
+				plantNewTree(x, leafColor) {}
+
+				/**
+				 * Draws our whole "planet", each tree followed by its leaves.
+				 */
+				draw() {}
+			}
+
+			const earth = new Earth();
+			const drawAll = () => {
+				requestAnimationFrame(drawAll);
+			};
+
+			drawAll();
+		</script>
+	</body>
+</html>

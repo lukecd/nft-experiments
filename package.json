@@ -15,5 +15,11 @@
   "bugs": {
     "url": "https://github.com/lukecd/nft-experiments/issues"
   },
-  "homepage": "https://github.com/lukecd/nft-experiments#readme"
+  "homepage": "https://github.com/lukecd/nft-experiments#readme",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.7.3"
+  },
+  "devDependencies": {
+    "html-webpack-plugin": "^5.5.0"
+  }
 }
