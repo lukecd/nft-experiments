@@ -8,13 +8,21 @@
 const container = document.getElementById("container");
 const canvas = document.getElementById("nftCanvas");
 const ctx = canvas.getContext("2d");
+
 const height = canvas.height;
 const width = canvas.width;
 const centerX = width / 2;
 const centerY = height / 2;
 
+const tempCanvas = document.createElement("canvas");
+const tempCtx = tempCanvas.getContext("2d");
+tempCanvas.width = width;
+tempCanvas.height = height;
+
 const dancerRadius = 20;
 const danceFloorRadius = canvas.width / 2 - 2 * dancerRadius - 20;
+const innerDanceFoorRadius = danceFloorRadius / 2;
+
 const nCircles = 20;
 const startAngle = 15.0;
 
@@ -87,7 +95,7 @@ class Dancer {
 		this.color = color;
 		this.xOffset = 0;
 		this.yOffset = 0;
-		this.rOffset = 0;
+		this.rOffset = 5;
 		// each "Dancer" exists in 2 states, "groove mode"
 		// where it sits around the edge of the circle
 		// and "dance mode" where it jumps in the middle of the circle
@@ -110,32 +118,69 @@ class Dancer {
 			);
 		}
 
-		// when we dance, we swap from being a circle to being an amorphous blob
-		this.wobbleIncrement = 0;
-		// use this to change the size of the blob
-		this.radius = dancerRadius * 3;
-		// think of this as detail level
-		// number of conections in the `bezierSkin`
-		this.segments = 24;
-		this.step = (Math.PI * 2) / this.segments;
-		this.anchors = [];
-		this.radii = [];
-		this.thetaOff = [];
+		// setup blob points based on centerX, centerY
+		this.updateBlobPoints(centerX, centerY, 100);
+	}
 
-		const bumpRadius = 100;
-		const halfBumpRadius = bumpRadius / 2;
+	updateBlobPoints(newX = centerX, newY = centerY, outerAnchorRadius) {
+		this.numPoints = 50;
+		this.blobPoints = [];
+		this.anchorPoints = [];
+		let angle = (Math.PI * 2) / this.numPoints;
 
-		for (let i = 0; i < this.segments + 2; i++) {
-			this.anchors.push(0, 0);
-			this.radii.push(Math.random() * bumpRadius - halfBumpRadius);
-			this.thetaOff.push(Math.random() * Math.PI * 2);
+		const s = Math.sin(angle);
+		const blobRadius = this.rOffset;
+		const innerAnchorRadius = 1;
+		//const outerAnchorRadius = blobRadius * 50;
+		for (let i = 0; i < this.numPoints; i++) {
+			let phi = angle * i;
+			this.blobPoints.push({
+				x: newX + blobRadius * Math.cos(phi),
+				y: newY + blobRadius * Math.sin(phi),
+				vx: Math.random(),
+				vy: Math.random(),
+			});
 		}
+		// const howManyToShift = randomInt(1, 5);
+		// for (let i = 0; i < howManyToShift; i++) {
+		// 	this.blobPoints.unshift(this.blobPoints.pop());
+		// }
+		angle = (Math.PI * 2) / (this.numPoints * 2);
+		for (let i = 0; i < this.numPoints * 2; i++) {
+			let phi = angle * i;
+			const inOrOut = Math.random();
+			const innerX = newX + innerAnchorRadius * Math.cos(phi);
+			const innerY = newY + innerAnchorRadius * Math.sin(phi);
+			const outerX = newX + outerAnchorRadius * Math.cos(phi);
+			const outerY = newY + outerAnchorRadius * Math.sin(phi);
 
-		this.theta = 0;
-		this.thetaRamp = 0;
-		this.thetaRampDest = 24;
-		this.rampDamp = 25;
-		this.SCALE = 0.42;
+			if (inOrOut > 0.5) {
+				this.anchorPoints.push({
+					curX: innerX,
+					curY: innerY,
+					minX: innerX >= newX ? innerX : outerX,
+					minY: innerY >= newY ? innerY : outerY,
+					maxX: outerX >= newX ? outerX * this.rOffset : innerX,
+					maxY: outerY >= newY ? outerY * this.rOffset : innerY,
+					vx: Math.random() / 10,
+					vy: Math.random() / 10,
+				});
+			} else {
+				this.anchorPoints.push({
+					curX: outerX,
+					curY: outerY,
+					minX: innerX >= newX ? innerX : outerX,
+					minY: innerY >= newY ? innerY : outerY,
+					maxX: outerX >= newX ? outerX * this.rOffset : innerX,
+					maxY: outerY >= newY ? outerY * this.rOffset : innerY,
+					vx: -Math.random() / 10,
+					vy: -Math.random() / 10,
+				});
+			}
+		}
+		// for (let i = 0; i < howManyToShift * 2; i++) {
+		// 	this.anchorPoints.unshift(this.anchorPoints.pop());
+		// }
 	}
 
 	groove() {
@@ -153,16 +198,18 @@ class Dancer {
 		const curSecs = new Date().getTime() / 1000;
 		if (curSecs - this.lastGrooveTime >= 2) {
 			const moveId = randomInt(1, 2);
-			console.log("do move moveId=", moveId);
 			this.shouldSatellite = false;
 			this.shouldSlide = false;
 			switch (moveId) {
 				case 1:
 					this.shouldSlide = true;
-					const r = (danceFloorRadius - 90) * Math.sqrt(Math.random());
+					const r = innerDanceFoorRadius * Math.sqrt(Math.random());
 					const theta = Math.random() * 2 * Math.PI;
 					this.slideX = centerX + r * Math.cos(theta);
 					this.slideY = centerY + r * Math.sin(theta);
+					// this.anchorPoints[0].maxX = this.slideX;
+					// this.anchorPoints[0].maxY = this.slideY;
+					//this.updateBlobPoints(this.slideX, this.slideY);
 					break;
 				case 2:
 					this.shouldSatellite = true;
@@ -172,10 +219,11 @@ class Dancer {
 		}
 	}
 
-	update(x, y, r) {
+	update(x, y, r, frequency) {
 		this.xOffset = x;
 		this.yOffset = y;
 		this.rOffset = r;
+		this.updateBlobPoints(centerX, centerY, frequency + audioMp3.currentTime);
 		// have we moved to dance mode
 		if (!this.amGrooving && !this.hasCentered) {
 			// move to center
@@ -203,94 +251,128 @@ class Dancer {
 			if (this.y > this.slideY) this.y -= 0.5;
 			else if (this.y < this.slideY) this.y += 0.5;
 		}
+
+		if (this.hasCentered) {
+			bgColor = this.color;
+			this.updateBlobPoints(centerX, centerY, frequency * 1.1);
+			// since we've centered we should start playing with the anchor points
+			for (let i = 0; i < this.anchorPoints.length; i++) {
+				this.anchorPoints[i].curX += this.anchorPoints[i].vx;
+				this.anchorPoints[i].curY += this.anchorPoints[i].vy;
+				if (this.anchorPoints[i].curX >= this.anchorPoints[i].maxX) {
+					this.anchorPoints[i].vx = -Math.abs(this.anchorPoints[i].vx);
+				} else if (this.anchorPoints[i].curX <= this.anchorPoints[i].minX) {
+					this.anchorPoints[i].vx = Math.abs(this.anchorPoints[i].vx);
+				}
+				if (this.anchorPoints[i].curY >= this.anchorPoints[i].maxY) {
+					this.anchorPoints[i].vy = -Math.abs(this.anchorPoints[i].vy);
+				} else if (this.anchorPoints[i].curY <= this.anchorPoints[i].minY) {
+					this.anchorPoints[i].vy = Math.abs(this.anchorPoints[i].vy);
+				}
+			}
+		}
 	}
 
 	draw() {
 		// have we moved to dance mode
 		if (this.hasCentered) {
-			// switch to blob mode
-			// based on https://stackoverflow.com/questions/69286992/corner-blob-animation
-			this.thetaRamp += (this.thetaRampDest - this.thetaRamp) / this.rampDamp;
-			this.theta += 0.03;
+			// blob mode
+			// testing code, draw each point as a dot so we can see structure
+			// for (let i = 0; i < this.blobPoints.length; i++) {
+			// 	ctx.beginPath();
+			// 	ctx.fillStyle = "#FFFFFF";
+			// 	ctx.arc(this.blobPoints[i].x, this.blobPoints[i].y, 2, 0, 2 * Math.PI, false);
+			// 	ctx.fill();
+			// 	ctx.font = "20px Arial";
+			// 	ctx.fillText(i, this.blobPoints[i].x, this.blobPoints[i].y);
+			// }
+			// for (let i = 0; i < this.innerAnchorPoints.length; i++) {
+			// 	ctx.beginPath();
+			// 	ctx.fillStyle = "#000000";
+			// 	ctx.arc(this.innerAnchorPoints[i].x, this.innerAnchorPoints[i].y, 2, 0, 2 * Math.PI, false);
+			// 	ctx.fill();
+			// 	ctx.beginPath();
+			// 	ctx.fillStyle = "#000000";
+			// 	ctx.arc(this.outerAnchorPoints[i].x, this.outerAnchorPoints[i].y, 2, 0, 2 * Math.PI, false);
+			// 	ctx.fill();
+			// 	ctx.font = "20px Arial";
+			// 	ctx.fillText(i, this.outerAnchorPoints[i].x, this.outerAnchorPoints[i].y);
+			// }
+			// let region = new Path2D();
+			// for (let i = 0; i < this.blobPoints.length; i++) {
+			// 	region.moveTo(this.blobPoints[i].x, this.blobPoints[i].y);
+			// 	if (i + 1 === this.blobPoints.length) {
+			// 		region.quadraticCurveTo(
+			// 			this.anchorPoints[this.anchorPoints.length - 1].curX,
+			// 			this.anchorPoints[this.anchorPoints.length - 1].curY,
+			// 			this.blobPoints[0].x,
+			// 			this.blobPoints[0].y,
+			// 		);
+			// 	} else {
+			// 		region.quadraticCurveTo(
+			// 			this.anchorPoints[i * 2 + 1].curX,
+			// 			this.anchorPoints[i * 2 + 1].curY,
+			// 			this.blobPoints[i + 1].x,
+			// 			this.blobPoints[i + 1].y,
+			// 		);
+			// 	}
+			// }
+			// ctx.clip(region);
+			// ctx.fillStyle = this.color;
+			// ctx.fillRect(0, 0, width, height);
 
-			this.anchors = [0, this.radius];
-			for (let i = 0; i <= this.segments + 2; i++) {
-				const sine = Math.sin(this.thetaOff[i] + this.theta + this.thetaRamp);
-				const rad = this.radius + this.radii[i] * sine;
-				const theta = this.step * i;
-				const x = rad * Math.sin(theta);
-				const y = rad * Math.cos(theta);
-				this.anchors.push(x, y);
+			for (let i = 0; i < this.blobPoints.length; i++) {
+				ctx.beginPath();
+				ctx.moveTo(this.blobPoints[i].x, this.blobPoints[i].y);
+				if (i + 1 === this.blobPoints.length) {
+					ctx.quadraticCurveTo(
+						this.anchorPoints[this.anchorPoints.length - 1].curX,
+						this.anchorPoints[this.anchorPoints.length - 1].curY,
+						this.blobPoints[0].x,
+						this.blobPoints[0].y,
+					);
+				} else {
+					ctx.quadraticCurveTo(
+						this.anchorPoints[i * 2 + 1].curX,
+						this.anchorPoints[i * 2 + 1].curY,
+						this.blobPoints[i + 1].x,
+						this.blobPoints[i + 1].y,
+					);
+				}
+				// ctx.strokeStyle = colors[randomInt(0, colors.length - 1)];
+				ctx.strokeStyle = colors[Math.floor(i % colors.length)];
+				ctx.lineWidth = randomInt(1, 9);
+				ctx.stroke();
+				ctx.closePath();
+				ctx.fill();
 			}
+			// ctx.arc(centerX, centerY, 200, 0, 2 * Math.PI, false);
+			// ctx.stroke();
+			// ctx.clip();
 
-			ctx.save();
-			ctx.translate(this.x, this.y);
-			ctx.rotate(Math.PI / 2);
-			ctx.scale(this.SCALE, this.SCALE);
-			ctx.fillStyle = this.color;
-			ctx.beginPath();
-			ctx.moveTo(0, 0);
-			this.bezierSkin(this.anchors, false);
-			ctx.lineTo(0, 0);
-			ctx.fill();
-			ctx.restore();
+			// cover up some of the starburst to create a dance floor
+			// ctx.beginPath();
+			// ctx.fillStyle = bgColor;
+			// ctx.arc(centerX, centerY, innerDanceFoorRadius, 0, 2 * Math.PI, false);
+			// ctx.closePath();
+			// ctx.fill();
 
-			if (this.shouldSatellite) {
-				this.satellites.forEach((satellite) => {
-					satellite.draw(this.x + this.xOffset, this.y + this.yOffset);
-				});
-			}
+			// draw the dancer
+			// ctx.beginPath();
+			// ctx.fillStyle = this.color;
+			// ctx.arc(this.x, this.y, 2 * this.rOffset, 0, 2 * Math.PI, false);
+			// ctx.closePath();
+			// ctx.fill();
 		} else {
+			// just draw normal style
 			ctx.beginPath();
+			ctx.strokeStyle = "#000000";
 			ctx.fillStyle = this.color;
-			ctx.arc(
-				this.x + this.xOffset,
-				this.y + this.yOffset,
-				dancerRadius + this.rOffset,
-				0,
-				2 * Math.PI,
-				false,
-			);
+			ctx.arc(this.x + this.xOffset, this.y + this.yOffset, 2 * this.rOffset, 0, 2 * Math.PI, false);
+			ctx.closePath();
+			ctx.stroke();
 			ctx.fill();
 		}
-	}
-
-	// array of xy coords, closed boolean
-	bezierSkin(bez, closed = true) {
-		const avg = this.calcAvgs(bez);
-		const leng = bez.length;
-
-		if (closed) {
-			ctx.moveTo(avg[0], avg[1]);
-			for (let i = 2; i < leng; i += 2) {
-				let n = i + 1;
-				ctx.quadraticCurveTo(bez[i], bez[n], avg[i], avg[n]);
-			}
-			ctx.quadraticCurveTo(bez[0], bez[1], avg[0], avg[1]);
-		} else {
-			ctx.moveTo(bez[0], bez[1]);
-			ctx.lineTo(avg[0], avg[1]);
-			for (let i = 2; i < leng - 2; i += 2) {
-				let n = i + 1;
-				ctx.quadraticCurveTo(bez[i], bez[n], avg[i], avg[n]);
-			}
-			ctx.lineTo(bez[leng - 2], bez[leng - 1]);
-		}
-	}
-
-	// create anchor points by averaging the control points
-	calcAvgs(p) {
-		const avg = [];
-		const leng = p.length;
-		let prev;
-
-		for (let i = 2; i < leng; i++) {
-			prev = i - 2;
-			avg.push((p[prev] + p[i]) / 2);
-		}
-		// close
-		avg.push((p[0] + p[leng - 2]) / 2, (p[1] + p[leng - 1]) / 2);
-		return avg;
 	}
 }
 
@@ -337,7 +419,7 @@ class DanceFloor {
 			let yOffset = 0; //randomFloat(-5, 5);
 			let rOffset = scale(frequency, 0, 256, 0, 10);
 			if (frequency == 0) yOffset = 0;
-			dancer.update(xOffset, yOffset, rOffset);
+			dancer.update(xOffset, yOffset, rOffset, frequency);
 		});
 	}
 
