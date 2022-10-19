@@ -54,6 +54,40 @@ const randomFloat = (min, max) => {
 	return Math.random() * (max - min) + min;
 };
 
+// from https://stackoverflow.com/questions/5092808/how-do-i-randomly-generate-html-hex-color-codes-using-javascript
+const randomColorHex = () => {
+	return "#000000".replace(/0/g, function () {
+		return (~~(Math.random() * 16)).toString(16);
+	});
+};
+
+// from https://stackoverflow.com/questions/4479475/javascript-color-palette-generator-formula-for-generating-array-of-intermediat
+function lerp(a, b, fac) {
+	let ret = [];
+
+	for (let i = 0; i < Math.min(a.length, b.length); i++) {
+		ret[i] = a[i] * (1 - fac) + b[i] * fac;
+	}
+
+	return new Color().setRGB(ret[0], ret[1], ret[2]).toString();
+}
+
+// from https://stackoverflow.com/questions/4479475/javascript-color-palette-generator-formula-for-generating-array-of-intermediat
+function lerpColors(begin, end, n) {
+	let ret = [];
+
+	for (var i = 0; i < n; i++) {
+		let fac = i / (n - 1);
+		ret.push(lerp(begin.toRGBArray(), end.toRGBArray(), fac));
+	}
+
+	return ret;
+}
+
+const generateColorPalette = (hex1, hex2, paletteSize) => {
+	return lerpColors(new Color(hex1), new Color(hex2), paletteSize);
+};
+
 class Satellite {
 	constructor(distanceFromDancer, r, color) {
 		this.distanceFromDancer = distanceFromDancer;
